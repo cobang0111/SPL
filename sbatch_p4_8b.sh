@@ -11,15 +11,15 @@ echo "### JOB STARTED: $(date)"
 echo "### NODE: $(hostname)"
 echo "### CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 
-source ~/anaconda3/etc/profile.d/conda.sh && conda activate vpl
+source ~/anaconda3/etc/profile.d/conda.sh && conda activate spl
 
-export HF_HOME="/scratch2/gihoon/hf_cache"
+export HF_HOME=""
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 echo $HF_HOME
 
 export WANDB_MODE=online
-export WANDB_PROJECT=SPL_p4_rebuttal
+export WANDB_PROJECT=SPL_p4
 export NCCL_P2P_DISABLE="1"
 export NCCL_IB_DISABLE="1"
 

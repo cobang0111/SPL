@@ -11,9 +11,9 @@ echo "### JOB STARTED: $(date)"
 echo "### NODE: $(hostname)"
 echo "### CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 
-source ~/anaconda3/etc/profile.d/conda.sh && conda activate vpl
+source ~/anaconda3/etc/profile.d/conda.sh && conda activate spl
 
-export HF_HOME="/scratch2/gihoon/hf_cache"
+export HF_HOME=""
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 echo $HF_HOME
@@ -61,9 +61,8 @@ python -m config.train_llm_vpl_model \
         --up_sampling False \
         --other_subsets ${augment_type} \
         --use_last_token_embedding True \
-        --mirrored_augmentation False \
-        --fast_eval True \
-        --seed 32
+        --fast_eval False \
+        --seed 31
 
 # Inverse Autoregressive Flow + Variational Preference Learning (IAF-VPL): ivpl
 elif [ ${model_type} == "ivpl" ];
@@ -98,7 +97,7 @@ python -m config.train_llm_ivpl_model \
         --seed 31 \
         --use_iaf True \
         --num_iaf_flows 2 \
-        --fast_eval True
+        --fast_eval False
 
 
 # Swap-guided Preference Learning (SPL): spl
@@ -135,7 +134,7 @@ python -m config.train_llm_spl_model \
         --seed 31 \
         --use_iaf True \
         --num_iaf_flows 2 \
-        --fast_eval True
+        --fast_eval False
 
 # DPL (Distributional Preference Learning): catergorical / mean_and_variance
 # BTL (Bradley-Terry-Luce RLHF): base
