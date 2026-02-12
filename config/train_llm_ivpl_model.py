@@ -16,7 +16,7 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import PaddingStrategy
-from .vpl_iaf_utils import IVPLTrainer, IVPLModel
+from .vpl_iaf_utils import IVPLTrainer, IVPLModel, TrainingPerfCallback
 
 from .train_llm_preference_model import (
     get_step_decay_lr_lambda,
@@ -187,6 +187,14 @@ class ScriptArguments:
         default=False,
         metadata={"help": "Whether to use guiding loss"}
     )
+    mirrored_augmentation: bool = field(
+        default=False,
+        metadata={"help": "Train with mirrored (opposite preference) augmentation"}
+    )
+    fast_eval: bool = field(
+        default=False,
+        metadata={"help": "Skip heavy eval (TSNE/UMAP/image logging) for throughput"}
+    )
     
 
 class HHRLHFPreprocessor(object):
@@ -247,7 +255,7 @@ class HHRLHFPreprocessor(object):
             if self.args.fixed_contexts:
                 contexts_embeddings = [{"embedding_chosen": context["embedding_chosen"],
                                         "embedding_rejected": context["embedding_rejected"]}
-                                       for context in contexts]
+                                       for context in contexts[:4]]
                 new_examples["contexts_embeddings"].append(contexts_embeddings)
             else:
                 tokenized_context = []
@@ -701,13 +709,15 @@ if __name__ == "__main__":
     for name, param in ivpl_model.named_parameters():
         print(name, param.requires_grad)
 
-
+    compute_metrics_fn = trainer_class.compute_metrics_fast if script_args.fast_eval else trainer_class.compute_metrics
+    
     trainer = trainer_class(
         model=ivpl_model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        compute_metrics=trainer_class.compute_metrics,
+        #compute_metrics=trainer_class.compute_metrics,
+        compute_metrics=compute_metrics_fn,
         data_collator=RewardDataCollatorWithPadding(
             args=script_args,
             tokenizer=tokenizer,
@@ -728,19 +738,25 @@ if __name__ == "__main__":
     if script_args.eval_first_step:
         trainer.add_callback(EvaluateFirstStepCallback())
 
+    trainer.add_callback(TrainingPerfCallback(
+        measure_flops=True,   
+        profile_steps=1,      
+        warmup_steps=5,       
+        log_to_wandb=True     
+    ))
+
     trainer.train(script_args.resume_from_checkpoint)
     
+    #print("Saving last checkpoint of the model")
 
-    print("Saving last checkpoint of the model")
+    #model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
+    #output_name += "_peft_last_checkpoint"
+    #os.makedirs(output_name, exist_ok=True)
 
-    model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
-    output_name += "_peft_last_checkpoint"
-    os.makedirs(output_name, exist_ok=True)
-
-    output_name = os.path.join(output_name, "model.pt")
-    if script_args.model_name == 'gpt2':
-        ivpl_model.save_model(output_name)
-    else:
-        torch.save(ivpl_model.state_dict(), output_name)
+    #output_name = os.path.join(output_name, "model.pt")
+    #if script_args.model_name == 'gpt2':
+    #    ivpl_model.save_model(output_name)
+    #else:
+    #    torch.save(ivpl_model.state_dict(), output_name)
         
 

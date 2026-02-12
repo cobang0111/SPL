@@ -18,3 +18,5 @@ model_type="llama-3.2-3B-instruct"
  python -m config.data_utils.generate_simple_data --output_dir data/simple_pets/ \
  --data_path data/relabeled_hh_rlhf --with_embeddings True --synthetic_dataset True \
  --model_type ${model_type} --data_subset harmless --data_split train --dataset_size 2000 &
+
+wait

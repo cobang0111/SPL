@@ -222,6 +222,9 @@ class VPLModel(nn.Module):
             z_noise = torch.randn_like(z)
             rc_noise, rr_noise = self.decode(target_chosen, target_rejected, z_noise)
         
+        # temp
+        #rc_noise, rr_noise = None, None
+        
         return rc, rr, mean, _log_var, z, rc_noise, rr_noise
 
     def save_model(self, path):
@@ -230,13 +233,14 @@ class VPLModel(nn.Module):
 
 class VPLTrainer(Trainer):
     def __init__(
-        self, *args, lr_lambda=None, kl_loss_weight=None, guiding_weight=None, use_annealing=False, **kwargs
+        self, *args, lr_lambda=None, kl_loss_weight=None, guiding_weight=None, use_annealing=False, mirrored_augmentation=False, **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.lr_lambda = lr_lambda
         self.kl_loss_weight = kl_loss_weight
         self.guiding_weight = guiding_weight
         self.use_annealing = use_annealing
+        self.mirrored_augmentation = mirrored_augmentation
         self.annealer = Annealer(
             total_steps=1e4, shape="cosine", baseline=0.1, cyclical=True  
         )
@@ -359,6 +363,19 @@ class VPLTrainer(Trainer):
                 user_type,
                 ground_truth_user_vector=False,  
         )
+        
+        # mirrored user forward (train only): swap chosen/rejected everywhere to get z_m
+        rc_m, rr_m, *_ = (None, None)
+        if getattr(self, "mirrored_augmentation", False) and model.training:
+            rc_m, rr_m, *_ = model(
+                embeddings_rejected,
+                embeddings_chosen,
+                contexts_embeddings_rejected,
+                contexts_embeddings_chosen,
+                seq_start_end,
+                user_type,
+                ground_truth_user_vector=False,
+            )
 
         reconstruction_loss = self.loss(rewards_chosen, rewards_rejected)
         if self.kl_loss_weight == 0:
@@ -424,11 +441,14 @@ class VPLTrainer(Trainer):
                 loss = reconstruction_loss + kld + self.guiding_weight * guide_loss
                 guide_ratio = guide_loss * self.guiding_weight / reconstruction_loss
             else:
+                if self.mirrored_augmentation and model.training and rc_m is not None and rr_m is not None:
+                    mirror_loss = self.loss(rr_m, rc_m)
+                    reconstruction_loss = 0.5 * (reconstruction_loss + mirror_loss)
                 loss = reconstruction_loss + kld
 
             accuracy = torch.mean((rewards_chosen > rewards_rejected).float())
             
-            z_noise_diff = self.loss(rc_noise, rr_noise) - reconstruction_loss
+            #z_noise_diff = self.loss(rc_noise, rr_noise) - reconstruction_loss
             
             if not return_outputs:
                 if model.guiding:
@@ -456,7 +476,7 @@ class VPLTrainer(Trainer):
                         "mean_swap": mean_sw.mean().item(),
                         "log_var": log_var.mean().item(),
                         "log_var_swap": log_var_sw.mean().item(),
-                        "z_noise_diff": z_noise_diff.mean().item(),
+                        #"z_noise_diff": z_noise_diff.mean().item(),
                     }
                 )
         if return_outputs:
@@ -528,6 +548,20 @@ class VPLTrainer(Trainer):
             "z_embeddings_tsne": im2,
             #"mean_embeddings_umap": im3,
             "z_embeddings_umap": im4,
+            "active_units": au,
+        }
+    
+    @classmethod
+    def compute_metrics_fast(cls, eval_prediction: EvalPrediction):
+        rewards_chosen, rewards_rejected, mean, log_var, z, user_type = eval_prediction.predictions
+        rewards_chosen = torch.from_numpy(rewards_chosen)
+        rewards_rejected = torch.from_numpy(rewards_rejected)
+        loss = cls.per_sample_loss(rewards_chosen, rewards_rejected)
+        accuracy = torch.mean((loss < np.log(2)).float())
+        au = cls.compute_active_units(torch.from_numpy(mean))
+        return {
+            "loss": loss.mean().item(),
+            "accuracy": accuracy.item(),
             "active_units": au,
         }
 
@@ -602,3 +636,165 @@ class Annealer:
         else:
             self.cyclical = value
         return
+
+
+
+
+import time
+from transformers import TrainerCallback
+
+class TrainingPerfCallback(TrainerCallback):
+    def __init__(self, measure_flops: bool = True, profile_steps: int = 1, warmup_steps: int = 5, log_to_wandb: bool = True):
+        self.measure_flops = measure_flops
+        self.profile_steps = profile_steps
+        self.warmup_steps = warmup_steps
+        self.log_to_wandb = log_to_wandb
+
+        self._train_start = None
+        self._step_start = None
+        self._durations_ms = []
+        self._prof = None
+        self._profiled_steps = 0
+        self.flops_per_step = None  # raw FLOPs (count), not FLOPS (rate)
+
+        self._param_count = None
+        self._eval_seconds = 0.0
+
+    @staticmethod
+    def _count_trainable_params(model):
+        try:
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _world_size(args):
+        try:
+            import torch.distributed as dist
+            if dist.is_available() and dist.is_initialized():
+                return dist.get_world_size()
+        except Exception:
+            pass
+        return max(1, getattr(args, "world_size", 0) or getattr(args, "n_gpu", 0) or torch.cuda.device_count() or 1)
+
+    def on_train_begin(self, args, state, control, **kwargs):
+        self._train_start = time.perf_counter()
+        model = kwargs.get("model", None)
+        self._param_count = self._count_trainable_params(model) if model is not None else None
+
+        if self._param_count is not None:
+            print(f"[Perf] Trainable parameters: {self._param_count:,}")
+
+        if self.log_to_wandb:
+            try:
+                import wandb
+                if self._param_count is not None:
+                    wandb.log({"perf/trainable_params": int(self._param_count)})
+            except Exception:
+                pass
+
+    def on_step_begin(self, args, state, control, **kwargs):
+        self._step_start = time.perf_counter()
+
+        if (
+            self.measure_flops
+            and self.flops_per_step is None
+            and (state.global_step or 0) >= self.warmup_steps
+            and self._profiled_steps < self.profile_steps
+        ):
+            try:
+                import torch.profiler as profiler
+                activities = [profiler.ProfilerActivity.CPU]
+                if torch.cuda.is_available():
+                    activities.append(profiler.ProfilerActivity.CUDA)
+                self._prof = profiler.profile(activities=activities, record_shapes=False, with_flops=True)
+                self._prof.__enter__()
+            except Exception:
+                self._prof = None
+                self.measure_flops = False  
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if self._step_start is not None:
+            dt_ms = (time.perf_counter() - self._step_start) * 1000.0
+            self._durations_ms.append(dt_ms)
+
+        if self._prof is not None:
+            try:
+                self._prof.step()
+                self._prof.__exit__(None, None, None)
+
+                total_flops = 0
+                for evt in self._prof.key_averages():
+                    f = getattr(evt, "flops", None)
+                    if f is not None:
+                        total_flops += f
+                if total_flops > 0:
+                    self.flops_per_step = int(total_flops)
+                self._profiled_steps += 1
+                self._prof = None
+            except Exception:
+                self._prof = None
+                
+    # eval runtime 
+    def on_evaluate(self, args, state, control, metrics=None, **kwargs):
+        try:
+            if metrics and "eval_runtime" in metrics:
+                self._eval_seconds += float(metrics["eval_runtime"])
+        except Exception:
+            pass
+
+    def on_log(self, args, state, control, **kwargs):
+        model = kwargs.get("model", None)
+        if model is not None and not model.training:
+            return
+        if len(self._durations_ms) >= 1:
+            import numpy as np
+            avg_ms = float(np.mean(self._durations_ms[-min(50, len(self._durations_ms)):]))
+
+            if self.log_to_wandb:
+                try:
+                    import wandb
+                    data = {"perf/ms_per_step": avg_ms}
+                    if self.flops_per_step is not None:
+                        data["perf/FLOPs_per_step(G)"] = self.flops_per_step / 1e9
+                    wandb.log(data)
+                except Exception:
+                    pass
+
+    def on_train_end(self, args, state, control, **kwargs):
+        wall_s = (time.perf_counter() - self._train_start) if self._train_start is not None else None
+        avg_ms = float(np.mean(self._durations_ms)) if len(self._durations_ms) else None
+        ws = self._world_size(args)
+
+        train_wall_s = None
+        if wall_s is not None:
+            train_wall_s = max(0.0, wall_s - self._eval_seconds)
+
+        total_gpu_hours = (wall_s / 3600.0) * ws if wall_s is not None else None
+        train_gpu_hours = (train_wall_s / 3600.0) * ws if train_wall_s is not None else None
+
+        print("===== Training Performance =====")
+        if self._param_count is not None:
+            print(f"- Trainable parameters: {self._param_count:,}")
+        if avg_ms is not None:
+            print(f"- Avg ms/step: {avg_ms:.2f} ms")
+        if self.flops_per_step is not None:
+            print(f"- FLOPs/step: {self.flops_per_step/1e9:.3f} GFLOPs")
+        if total_gpu_hours is not None:
+            print(f"- GPU-hours (total incl. eval): {total_gpu_hours:.3f} h")
+        if train_gpu_hours is not None:
+            print(f"- GPU-hours (train only): {train_gpu_hours:.3f} h")
+        print("================================")
+
+        if self.log_to_wandb:
+            try:
+                import wandb
+                data = {}
+                if self._param_count is not None: data["perf/trainable_params"] = int(self._param_count)
+                if avg_ms is not None: data["perf/avg_ms_per_step"] = avg_ms
+                if self.flops_per_step is not None: data["perf/FLOPs_per_step(G)"] = self.flops_per_step / 1e9
+                if total_gpu_hours is not None: data["perf/GPU_hours_total"] = total_gpu_hours
+                if train_gpu_hours is not None: data["perf/GPU_hours_train_only"] = train_gpu_hours
+                if data: wandb.log(data)
+            except Exception:
+                pass

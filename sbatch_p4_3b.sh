@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -p suma_rtx4090
 #SBATCH --gres=gpu:1
-#SBATCH --time=2-00:00:00
+#SBATCH --time=1-12:00:00
 #SBATCH --job-name=train_job
 #SBATCH --output=slurm-%j.out
 
@@ -11,15 +11,15 @@ echo "### JOB STARTED: $(date)"
 echo "### NODE: $(hostname)"
 echo "### CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 
-source ~/anaconda3/etc/profile.d/conda.sh && conda activate spl
+source ~/anaconda3/etc/profile.d/conda.sh && conda activate vpl
 
-export HF_HOME=""
+export HF_HOME="/scratch2/gihoon/hf_cache"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 echo $HF_HOME
 
 export WANDB_MODE=online
-export WANDB_PROJECT=SPL_p4
+export WANDB_PROJECT=SPL_p4_rebuttal
 export NCCL_P2P_DISABLE="1"
 export NCCL_IB_DISABLE="1"
 
@@ -43,6 +43,7 @@ python -m config.train_llm_vpl_model \
         --fp16 False \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 3072 \
@@ -52,6 +53,39 @@ python -m config.train_llm_vpl_model \
         --use_annealing True \
         --kl_loss_weight 3e-6 \
         --guiding False \
+        --guiding_weight 1e-3 \
+        --controversial_only True \
+        --fixed_contexts True \
+        --fixed_llm_embeddings False \
+        --up_sampling False \
+        --other_subsets single \
+        --use_last_token_embedding True \
+        --mirrored_augmentation True \
+        --fast_eval True \
+        --seed 31
+
+elif [ ${model_type} == "plr" ];
+then
+python -m config.train_llm_plr_model \
+        --model_name=${model_name} \
+        --data_path="data/P_4_survey_16/llama-3.2-3B-instruct" \
+        --num_train_epochs=2 \
+        --reward_model_type=plr \
+        --data_subset=all \
+        --log_dir="logs/llama-3.2-3B-instruct_P_4_survey_16" \
+        --bf16 True \
+        --fp16 False \
+        --per_device_train_batch_size 32 \
+        --gradient_accumulation_steps 8 \
+        --latent_dim 512 \
+        --hidden_dim 512 \
+        --encoder_embed_dim 3072 \
+        --decoder_embed_dim 3072 \
+        --max_length 1024 \
+        --learning_rate 1e-4 \
+        --use_annealing True \
+        --kl_loss_weight 0 \
+        --guiding False \
         --controversial_only True \
         --fixed_contexts True \
         --fixed_llm_embeddings False \
@@ -59,6 +93,7 @@ python -m config.train_llm_vpl_model \
         --other_subsets single \
         --use_last_token_embedding True \
         --seed 31
+
 
 # Inverse Autoregressive Flow + Variational Preference Learning (IAF-VPL): ivpl
 elif [ ${model_type} == "ivpl" ];
@@ -72,8 +107,9 @@ python -m config.train_llm_ivpl_model \
         --log_dir="logs/llama-3.2-3B-instruct_P_4_survey_16" \
         --bf16 True \
         --fp16 False \
-        --per_device_train_batch_size 8 \
-        --gradient_accumulation_steps 8 \
+        --per_device_train_batch_size 16 \
+        --gradient_accumulation_steps 4 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 3072 \
@@ -83,16 +119,18 @@ python -m config.train_llm_ivpl_model \
         --use_annealing True \
         --kl_loss_weight 3e-6 \
         --guiding False \
-        --guiding_weight 1e-5 \
+        --guiding_weight 1e-3 \
         --controversial_only True \
         --fixed_contexts True \
         --fixed_llm_embeddings False \
         --up_sampling False \
         --other_subsets single \
         --use_last_token_embedding True \
+        --fast_eval True \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --mirrored_augmentation True
 
 # Swap-guided Preference Learning (SPL): spl
 elif [ ${model_type} == "spl" ];
@@ -106,8 +144,9 @@ python -m config.train_llm_spl_model \
         --log_dir="logs/llama-3.2-3B-instruct_P_4_survey_16" \
         --bf16 True \
         --fp16 False \
-        --per_device_train_batch_size 8 \
-        --gradient_accumulation_steps 8 \
+        --per_device_train_batch_size 16 \
+        --gradient_accumulation_steps 4 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 3072 \
@@ -124,9 +163,11 @@ python -m config.train_llm_spl_model \
         --up_sampling False \
         --other_subsets single \
         --use_last_token_embedding True \
-        --seed 31 \
+        --fast_eval True \
+        --seed 32 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --noise_flip_prob 0.25
 
 else
 

@@ -16,7 +16,8 @@ from transformers import (
     TrainerCallback,
 )
 from transformers.utils import PaddingStrategy
-from .spl_utils import SPLTrainer, SPLModel
+#from .spl_utils import SPLTrainer, SPLModel
+from .spl_utils import SPLTrainer, SPLModel, TrainingPerfCallback
 
 from .train_llm_preference_model import (
     get_step_decay_lr_lambda,
@@ -187,7 +188,11 @@ class ScriptArguments:
         default=False,
         metadata={"help": "Whether to use guiding loss"}
     )
-    
+    fast_eval: bool = field(
+        default=False,
+        metadata={"help": "Skip heavy eval (TSNE/UMAP/image logging) for throughput"}
+    )
+
 
 class HHRLHFPreprocessor(object):
     def __init__(self, args, tokenizer, **tokenizer_kwargs):
@@ -694,12 +699,15 @@ if __name__ == "__main__":
     for name, param in spl_model.named_parameters():
         print(name, param.requires_grad)
 
+    compute_metrics_fn = trainer_class.compute_metrics_fast if script_args.fast_eval else trainer_class.compute_metrics
+
     trainer = trainer_class(
         model=spl_model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        compute_metrics=trainer_class.compute_metrics,
+        #compute_metrics=trainer_class.compute_metrics,
+        compute_metrics=compute_metrics_fn,
         data_collator=RewardDataCollatorWithPadding(
             args=script_args,
             tokenizer=tokenizer,
@@ -712,27 +720,32 @@ if __name__ == "__main__":
         **trainer_kwargs,
     )
 
-    class EvaluateFirstStepCallback(TrainerCallback):
-        def on_step_begin(self, args, state, control, **kwargs):
-            if state.global_step == 0:
-                control.should_evaluate = True
+    #class EvaluateFirstStepCallback(TrainerCallback):
+    #    def on_step_begin(self, args, state, control, **kwargs):
+    #        if state.global_step == 0:
+    #            control.should_evaluate = True
 
-    if script_args.eval_first_step:
-        trainer.add_callback(EvaluateFirstStepCallback())
+    #if script_args.eval_first_step:
+    #    trainer.add_callback(EvaluateFirstStepCallback())
+        
+    trainer.add_callback(TrainingPerfCallback(
+        measure_flops=True,   # FLOPs 측정 비활성화하려면 False
+        profile_steps=1,      # FLOPs를 몇 step 동안 측정할지
+        warmup_steps=5,       # 워밍업 후 측정 시작
+        log_to_wandb=True     # W&B에도 로깅
+    ))
 
     trainer.train(script_args.resume_from_checkpoint)
     
+    #print("Saving last checkpoint of the model")
 
-    print("Saving last checkpoint of the model")
+    #model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
+    #output_name += "_peft_last_checkpoint"
+    #os.makedirs(output_name, exist_ok=True)
 
-    model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
-    output_name += "_peft_last_checkpoint"
-    os.makedirs(output_name, exist_ok=True)
-
-    output_name = os.path.join(output_name, "model.pt")
-    if script_args.model_name == 'gpt2':
-        spl_model.save_model(output_name)
-    else:
-        torch.save(spl_model.state_dict(), output_name)
+    #output_name = os.path.join(output_name, "model.pt")
+    #if script_args.model_name == 'gpt2':
+    #    spl_model.save_model(output_name)
+    #else:
+    #    torch.save(spl_model.state_dict(), output_name)
         
-

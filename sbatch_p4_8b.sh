@@ -11,15 +11,15 @@ echo "### JOB STARTED: $(date)"
 echo "### NODE: $(hostname)"
 echo "### CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 
-source ~/anaconda3/etc/profile.d/conda.sh && conda activate spl
+source ~/anaconda3/etc/profile.d/conda.sh && conda activate vpl
 
-export HF_HOME=""
+export HF_HOME="/scratch2/gihoon/hf_cache"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 echo $HF_HOME
 
 export WANDB_MODE=online
-export WANDB_PROJECT=SPL_p4
+export WANDB_PROJECT=SPL_p4_rebuttal
 export NCCL_P2P_DISABLE="1"
 export NCCL_IB_DISABLE="1"
 
@@ -43,6 +43,7 @@ python -m config.train_llm_vpl_model \
         --fp16 False \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 4096 \
@@ -58,6 +59,8 @@ python -m config.train_llm_vpl_model \
         --up_sampling False \
         --other_subsets single \
         --use_last_token_embedding True \
+        --mirrored_augmentation False \
+        --fast_eval True \
         --seed 31
 
 # Inverse Autoregressive Flow + Variational Preference Learning (IAF-VPL): ivpl
@@ -108,6 +111,7 @@ python -m config.train_llm_spl_model \
         --fp16 False \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 4096 \
@@ -126,7 +130,8 @@ python -m config.train_llm_spl_model \
         --use_last_token_embedding True \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --fast_eval True
 
 else
 

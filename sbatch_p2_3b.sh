@@ -11,9 +11,9 @@ echo "### JOB STARTED: $(date)"
 echo "### NODE: $(hostname)"
 echo "### CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 
-source ~/anaconda3/etc/profile.d/conda.sh && conda activate spl
+source ~/anaconda3/etc/profile.d/conda.sh && conda activate vpl
 
-export HF_HOME=""
+export HF_HOME="/scratch2/gihoon/hf_cache"
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export TRANSFORMERS_CACHE="$HF_HOME/transformers"
 echo $HF_HOME
@@ -35,15 +35,16 @@ if [ ${model_type} == "vpl" ];
 then
 python -m config.train_llm_vpl_model \
         --model_name=${model_name} \
-        --data_path="data/P_survey_16/llama-3.2-3B-instruct" \
+        --data_path="data/P_survey_16_3B" \
         --num_train_epochs=2 \
         --reward_model_type=vpl \
         --data_subset=all \
         --log_dir="logs/llama-3.2-3B-instruct_P_survey_16" \
         --bf16 True \
         --fp16 False \
-        --per_device_train_batch_size 8 \
-        --gradient_accumulation_steps 8 \
+        --per_device_train_batch_size 16 \
+        --gradient_accumulation_steps 4 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 3072 \
@@ -51,15 +52,18 @@ python -m config.train_llm_vpl_model \
         --max_length 1024 \
         --learning_rate 1e-4 \
         --use_annealing True \
-        --kl_loss_weight 3e-6 \
+        --kl_loss_weight 3e-5 \
         --guiding False \
+        --guiding_weight 1e-5 \
         --controversial_only True \
         --fixed_contexts True \
         --fixed_llm_embeddings False \
         --up_sampling False \
         --other_subsets ${augment_type} \
         --use_last_token_embedding True \
-        --seed 31
+        --mirrored_augmentation False \
+        --fast_eval True \
+        --seed 32
 
 # Inverse Autoregressive Flow + Variational Preference Learning (IAF-VPL): ivpl
 elif [ ${model_type} == "ivpl" ];
@@ -93,22 +97,25 @@ python -m config.train_llm_ivpl_model \
         --use_last_token_embedding True \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --fast_eval True
+
 
 # Swap-guided Preference Learning (SPL): spl
 elif [ ${model_type} == "spl" ];
 then
 python -m config.train_llm_spl_model \
         --model_name=${model_name} \
-        --data_path="data/P_survey_16/llama-3.2-3B-instruct" \
+        --data_path="data/P_survey_16_3B" \
         --num_train_epochs=2 \
         --reward_model_type=spl \
         --data_subset=all \
         --log_dir="logs/llama-3.2-3B-instruct_P_survey_16" \
         --bf16 True \
         --fp16 False \
-        --per_device_train_batch_size 8 \
-        --gradient_accumulation_steps 8 \
+        --per_device_train_batch_size 16 \
+        --gradient_accumulation_steps 4 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 3072 \
@@ -117,8 +124,8 @@ python -m config.train_llm_spl_model \
         --learning_rate 1e-4 \
         --use_annealing True \
         --kl_loss_weight 3e-6 \
-        --guiding True \
-        --guiding_weight 5e-4 \
+        --guiding False \
+        --guiding_weight 1e-5 \
         --controversial_only True \
         --fixed_contexts True \
         --fixed_llm_embeddings False \
@@ -127,14 +134,15 @@ python -m config.train_llm_spl_model \
         --use_last_token_embedding True \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --fast_eval True
 
 # DPL (Distributional Preference Learning): catergorical / mean_and_variance
 # BTL (Bradley-Terry-Luce RLHF): base
 else
 python -m config.train_llm_preference_model \
         --model_name=${model_name} \
-        --data_path="data/P_survey_16/llama-3.2-3B-instruct" \
+        --data_path="data/P_survey_16_3B" \
         --num_train_epochs=2 \
         --reward_model_type=${model_type} \
         --data_subset=all \
@@ -142,8 +150,9 @@ python -m config.train_llm_preference_model \
         --bf16 True \
         --fp16 False \
         --max_length 1024 \
-        --per_device_train_batch_size 8 \
-        --gradient_accumulation_steps 8 \
+        --per_device_train_batch_size 16 \
+        --gradient_accumulation_steps 4 \
+        --per_device_eval_batch_size 16 \
         --learning_rate 1e-4 \
         --controversial_only True \
         --up_sampling False \
