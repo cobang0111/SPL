@@ -745,32 +745,31 @@ if __name__ == "__main__":
         **trainer_kwargs,
     )
 
-    #class EvaluateFirstStepCallback(TrainerCallback):
-    #    def on_step_begin(self, args, state, control, **kwargs):
-    #        if state.global_step == 0:
-    #            control.should_evaluate = True
+    class EvaluateFirstStepCallback(TrainerCallback):
+        def on_step_begin(self, args, state, control, **kwargs):
+            if state.global_step == 0:
+                control.should_evaluate = True
 
-    #if script_args.eval_first_step:
-    #    trainer.add_callback(EvaluateFirstStepCallback())
+    if script_args.eval_first_step:
+        trainer.add_callback(EvaluateFirstStepCallback())
         
     trainer.add_callback(TrainingPerfCallback(
-        measure_flops=True,   # FLOPs 측정 비활성화하려면 False
-        profile_steps=1,      # FLOPs를 몇 step 동안 측정할지
-        warmup_steps=5,       # 워밍업 후 측정 시작
-        log_to_wandb=True     # W&B에도 로깅
+        measure_flops=True,   
+        profile_steps=1,      
+        warmup_steps=5,       
+        log_to_wandb=True     
     ))
 
     trainer.train(script_args.resume_from_checkpoint)
     
-    #print("Saving last checkpoint of the model")
+    print("Saving last checkpoint of the model")
 
-    #model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
-    #output_name += "_peft_last_checkpoint"
-    #os.makedirs(output_name, exist_ok=True)
+    model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
+    output_name += "_peft_last_checkpoint"
+    os.makedirs(output_name, exist_ok=True)
 
-    #output_name = os.path.join(output_name, "model.pt")
-    #if script_args.model_name == 'gpt2':
-    #    vpl_model.save_model(output_name)
-    #else:
-    #    torch.save(vpl_model.state_dict(), output_name)
-
+    output_name = os.path.join(output_name, "model.pt")
+    if script_args.model_name == 'gpt2':
+        vpl_model.save_model(output_name)
+    else:
+        torch.save(vpl_model.state_dict(), output_name)

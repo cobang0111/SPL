@@ -747,16 +747,16 @@ if __name__ == "__main__":
 
     trainer.train(script_args.resume_from_checkpoint)
     
-    #print("Saving last checkpoint of the model")
+    print("Saving last checkpoint of the model")
 
-    #model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
-    #output_name += "_peft_last_checkpoint"
-    #os.makedirs(output_name, exist_ok=True)
+    model.save_pretrained(output_name + "_peft_last_checkpoint", save_safetensors=False)
+    output_name += "_peft_last_checkpoint"
+    os.makedirs(output_name, exist_ok=True)
 
-    #output_name = os.path.join(output_name, "model.pt")
-    #if script_args.model_name == 'gpt2':
-    #    ivpl_model.save_model(output_name)
-    #else:
-    #    torch.save(ivpl_model.state_dict(), output_name)
+    output_name = os.path.join(output_name, "model.pt")
+    if script_args.model_name == 'gpt2':
+        ivpl_model.save_model(output_name)
+    else:
+        torch.save(ivpl_model.state_dict(), output_name)
         
 
