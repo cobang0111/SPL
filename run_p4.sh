@@ -33,4 +33,5 @@ python -m config.train_llm_spl_model \
         --use_last_token_embedding True \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --fast_eval False

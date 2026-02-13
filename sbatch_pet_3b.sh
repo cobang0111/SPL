@@ -57,7 +57,8 @@ python -m config.train_llm_vpl_model \
         --use_last_token_embedding True \
         --up_sampling True \
         --controversial_only False \
-        --seed 31
+        --seed 31 \
+        --fast_eval False
 
 
 # Inverse Autoregressive Flow + Variational Preference Learning (VPL-IAF): ivpl
@@ -91,7 +92,8 @@ python -m config.train_llm_ivpl_model \
         --controversial_only False \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --fast_eval False
 
 # Swap-guided Preference Learning (SPL): spl
 elif [ ${model_type} == "spl" ]
@@ -124,12 +126,13 @@ python -m config.train_llm_spl_model \
         --controversial_only False \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --fast_eval False
 
 # DPL (Distributional Preference Learning): catergorical / mean_and_variance
 # BTL (Bradley-Terry-Luce RLHF): base
 else
-python -m hidden_context.train_llm_preference_model \
+python -m config.train_llm_preference_model \
         --model_name=${model_name} \
         --data_path="data/simple_pets/llama-3.2-3B-instruct" \
         --num_train_epochs=2 \
