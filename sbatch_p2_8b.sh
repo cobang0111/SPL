@@ -44,6 +44,7 @@ python -m config.train_llm_vpl_model \
         --fp16 False \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 4096 \
@@ -59,7 +60,8 @@ python -m config.train_llm_vpl_model \
         --up_sampling False \
         --other_subsets ${augment_type} \
         --use_last_token_embedding True \
-        --seed 31
+        --seed 31 \
+        --fast_eval False
 
 # Inverse Autoregressive Flow + Variational Preference Learning (IAF-VPL): ivpl
 elif [ ${model_type} == "ivpl" ];
@@ -75,6 +77,7 @@ python -m config.train_llm_ivpl_model \
         --fp16 False \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 4096 \
@@ -93,7 +96,8 @@ python -m config.train_llm_ivpl_model \
         --use_last_token_embedding True \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2
+        --num_iaf_flows 2 \
+        --fast_eval False
 
 # Swap-guided Preference Learning (SPL): spl
 elif [ ${model_type} == "spl" ];
@@ -109,6 +113,7 @@ python -m config.train_llm_spl_model \
         --fp16 False \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 4096 \
@@ -127,7 +132,8 @@ python -m config.train_llm_spl_model \
         --use_last_token_embedding True \
         --seed 31 \
         --use_iaf True \
-        --num_iaf_flows 2 
+        --num_iaf_flows 2 \
+        --fast_eval False
 
 # DPL (Distributional Preference Learning): catergorical / mean_and_variance
 # BTL (Bradley-Terry-Luce RLHF): base
@@ -144,6 +150,7 @@ python -m config.train_llm_preference_model \
         --max_length 1024 \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --learning_rate 1e-4 \
         --controversial_only True \
         --up_sampling False \

@@ -47,13 +47,20 @@ bash generate_llm_embeddings_UF_P_4.sh
 
 ```
 
+(Optional) When you have problem with 
+```bash
+KeyError: 'type'
+```
+Put "type": "llama3" to config.json in hugging face cache transformers/model_name/snapshots. 
+
+
 ### ✨Simple Experiments
 
 You can evaluate SPL on the generated datasets, alongside all baseline models included in the paper.
 
 For example:
 
-- **run_pets.sh** runs SPL on the Pets dataset with Llama-3.1-8B-instruct.
+- **run_pets.sh** runs SPL on the Pets dataset with Llama-3.2-3B-instruct.
 
 - **run_p4.sh** runs SPL on the UF-P-4 dataset with Llama-3.2-3B-instruct.
 ```bash

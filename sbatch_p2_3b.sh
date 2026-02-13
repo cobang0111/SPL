@@ -42,8 +42,8 @@ python -m config.train_llm_vpl_model \
         --log_dir="logs/llama-3.2-3B-instruct_P_survey_16" \
         --bf16 True \
         --fp16 False \
-        --per_device_train_batch_size 16 \
-        --gradient_accumulation_steps 4 \
+        --per_device_train_batch_size 8 \
+        --gradient_accumulation_steps 8 \
         --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
@@ -78,6 +78,7 @@ python -m config.train_llm_ivpl_model \
         --fp16 False \
         --per_device_train_batch_size 8 \
         --gradient_accumulation_steps 8 \
+        --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
         --encoder_embed_dim 3072 \
@@ -112,8 +113,8 @@ python -m config.train_llm_spl_model \
         --log_dir="logs/llama-3.2-3B-instruct_P_survey_16" \
         --bf16 True \
         --fp16 False \
-        --per_device_train_batch_size 16 \
-        --gradient_accumulation_steps 4 \
+        --per_device_train_batch_size 8 \
+        --gradient_accumulation_steps 8 \
         --per_device_eval_batch_size 16 \
         --latent_dim 1024 \
         --hidden_dim 1024 \
@@ -149,8 +150,8 @@ python -m config.train_llm_preference_model \
         --bf16 True \
         --fp16 False \
         --max_length 1024 \
-        --per_device_train_batch_size 16 \
-        --gradient_accumulation_steps 4 \
+        --per_device_train_batch_size 8 \
+        --gradient_accumulation_steps 8 \
         --per_device_eval_batch_size 16 \
         --learning_rate 1e-4 \
         --controversial_only True \

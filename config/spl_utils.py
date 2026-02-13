@@ -868,7 +868,10 @@ class TrainingPerfCallback(TrainerCallback):
                 for evt in self._prof.key_averages():
                     f = getattr(evt, "flops", None)
                     if f is not None:
-                        total_flops += fd
+                        total_flops += f
+                    if total_flops > 0:
+                    self.flops_per_step = int(total_flops)
+                self._profiled_steps += 1
                 self._prof = None
             except Exception:
                 self._prof = None
