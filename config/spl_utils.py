@@ -870,7 +870,7 @@ class TrainingPerfCallback(TrainerCallback):
                     if f is not None:
                         total_flops += f
                     if total_flops > 0:
-                    self.flops_per_step = int(total_flops)
+                        self.flops_per_step = int(total_flops)
                 self._profiled_steps += 1
                 self._prof = None
             except Exception:
