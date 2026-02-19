@@ -51,6 +51,7 @@ python -m config.train_llm_vpl_model \
         --use_annealing True \
         --kl_loss_weight 1e-4 \
         --guiding False \
+        --guiding_weight 1e-5 \
         --fixed_contexts True \
         --fixed_llm_embeddings False \
         --use_last_token_embedding True \

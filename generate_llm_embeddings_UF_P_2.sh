@@ -2,6 +2,10 @@ model_type="llama-3.2-3B-instruct"
 #model_type="llama-3.1-8B-instruct"
 other_subsets="84"
 
+# For the first implementation, generate the dataset
+# If you already have the dataset, skip this step
+python -m config.data_utils.ultrafeedback_augment -a single -n P
+
 # Generate LLM embeddings for UltraFeedback dataset
 if [ "${other_subsets}" = "ultra_feedback" ]; then
     subsets="helpfulness honesty instruction_following truthfulness"

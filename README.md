@@ -64,9 +64,9 @@ For example:
 
 - **run_p4.sh** runs SPL on the UF-P-4 dataset with Llama-3.2-3B-instruct.
 ```bash
-# FLPL in Pets
+# SPL in Pets
 bash run_pets.sh
-# FLPL in UF-P-4
+# SPL in UF-P-4
 bash run_p4.sh 
 ```
 Additional examples for other datasets and model sizes can be found in the corresponding sbatch_[data]_[model_size].sh files.

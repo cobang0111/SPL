@@ -133,7 +133,8 @@ python -m config.train_llm_spl_model \
         --seed 31 \
         --use_iaf True \
         --num_iaf_flows 2 \
-        --fast_eval False
+        --fast_eval False 
+        #--noise_flip_prob 0.25
 
 # DPL (Distributional Preference Learning): catergorical / mean_and_variance
 # BTL (Bradley-Terry-Luce RLHF): base

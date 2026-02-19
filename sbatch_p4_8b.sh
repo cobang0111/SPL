@@ -53,6 +53,7 @@ python -m config.train_llm_vpl_model \
         --use_annealing True \
         --kl_loss_weight 3e-6 \
         --guiding False \
+        --guiding_weight 1e-5 \
         --controversial_only True \
         --fixed_contexts True \
         --fixed_llm_embeddings False \
@@ -131,7 +132,8 @@ python -m config.train_llm_spl_model \
         --seed 31 \
         --use_iaf True \
         --num_iaf_flows 2 \
-        --fast_eval True
+        --fast_eval False
+        #--noise_flip_prob 0.25
 
 else
 

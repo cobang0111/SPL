@@ -35,7 +35,7 @@ if [ ${model_type} == "vpl" ];
 then
 python -m config.train_llm_vpl_model \
         --model_name=${model_name} \
-        --data_path="data/P_survey_16_3B" \
+        --data_path="data/P_survey_16/llama-3.2-3B-instruct" \
         --num_train_epochs=2 \
         --reward_model_type=vpl \
         --data_subset=all \
@@ -52,7 +52,7 @@ python -m config.train_llm_vpl_model \
         --max_length 1024 \
         --learning_rate 1e-4 \
         --use_annealing True \
-        --kl_loss_weight 3e-5 \
+        --kl_loss_weight 3e-6 \
         --guiding False \
         --guiding_weight 1e-5 \
         --controversial_only True \
@@ -106,7 +106,7 @@ elif [ ${model_type} == "spl" ];
 then
 python -m config.train_llm_spl_model \
         --model_name=${model_name} \
-        --data_path="data/P_survey_16_3B" \
+        --data_path="data/P_survey_16/llama-3.2-3B-instruct" \
         --num_train_epochs=2 \
         --reward_model_type=spl \
         --data_subset=all \
@@ -124,7 +124,7 @@ python -m config.train_llm_spl_model \
         --learning_rate 1e-4 \
         --use_annealing True \
         --kl_loss_weight 3e-6 \
-        --guiding False \
+        --guiding True \
         --guiding_weight 1e-5 \
         --controversial_only True \
         --fixed_contexts True \
@@ -136,13 +136,14 @@ python -m config.train_llm_spl_model \
         --use_iaf True \
         --num_iaf_flows 2 \
         --fast_eval False
+        #--noise_flip_prob 0.25
 
 # DPL (Distributional Preference Learning): catergorical / mean_and_variance
 # BTL (Bradley-Terry-Luce RLHF): base
 else
 python -m config.train_llm_preference_model \
         --model_name=${model_name} \
-        --data_path="data/P_survey_16_3B" \
+        --data_path="data/P_survey_16/llama-3.2-3B-instruct" \
         --num_train_epochs=2 \
         --reward_model_type=${model_type} \
         --data_subset=all \
