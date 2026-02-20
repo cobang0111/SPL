@@ -187,10 +187,6 @@ class ScriptArguments:
         default=False,
         metadata={"help": "Whether to use guiding loss"}
     )
-    mirrored_augmentation: bool = field(
-        default=False,
-        metadata={"help": "Train with mirrored (opposite preference) augmentation"}
-    )
     fast_eval: bool = field(
         default=False,
         metadata={"help": "Skip heavy eval (TSNE/UMAP/image logging) for throughput"}

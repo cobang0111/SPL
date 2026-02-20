@@ -233,14 +233,13 @@ class VPLModel(nn.Module):
 
 class VPLTrainer(Trainer):
     def __init__(
-        self, *args, lr_lambda=None, kl_loss_weight=None, guiding_weight=None, use_annealing=False, mirrored_augmentation=False, **kwargs
+        self, *args, lr_lambda=None, kl_loss_weight=None, guiding_weight=None, use_annealing=False, **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.lr_lambda = lr_lambda
         self.kl_loss_weight = kl_loss_weight
         self.guiding_weight = guiding_weight
         self.use_annealing = use_annealing
-        self.mirrored_augmentation = mirrored_augmentation
         self.annealer = Annealer(
             total_steps=1e4, shape="cosine", baseline=0.1, cyclical=True  
         )
@@ -363,19 +362,6 @@ class VPLTrainer(Trainer):
                 user_type,
                 ground_truth_user_vector=False,  
         )
-        
-        # mirrored user forward (train only): swap chosen/rejected everywhere to get z_m
-        rc_m, rr_m, *_ = (None, None)
-        if getattr(self, "mirrored_augmentation", False) and model.training:
-            rc_m, rr_m, *_ = model(
-                embeddings_rejected,
-                embeddings_chosen,
-                contexts_embeddings_rejected,
-                contexts_embeddings_chosen,
-                seq_start_end,
-                user_type,
-                ground_truth_user_vector=False,
-            )
 
         reconstruction_loss = self.loss(rewards_chosen, rewards_rejected)
         if self.kl_loss_weight == 0:
@@ -441,9 +427,6 @@ class VPLTrainer(Trainer):
                 loss = reconstruction_loss + kld + self.guiding_weight * guide_loss
                 guide_ratio = guide_loss * self.guiding_weight / reconstruction_loss
             else:
-                if self.mirrored_augmentation and model.training and rc_m is not None and rr_m is not None:
-                    mirror_loss = self.loss(rr_m, rc_m)
-                    reconstruction_loss = 0.5 * (reconstruction_loss + mirror_loss)
                 loss = reconstruction_loss + kld
 
             accuracy = torch.mean((rewards_chosen > rewards_rejected).float())

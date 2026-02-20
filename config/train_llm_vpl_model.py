@@ -29,30 +29,6 @@ from .train_llm_preference_model import (
 
 from datasets import concatenate_datasets
 
-def _mirror_swap(example):
-    ex = dict(example)
-
-    # top-level swap
-    if "chosen" in ex and "rejected" in ex:
-        ex["chosen"], ex["rejected"] = ex["rejected"], ex["chosen"]
-
-    # contexts swap (robust)
-    ctx = ex.get("contexts", None)
-    if isinstance(ctx, list):
-        new_ctx = []
-        for c in ctx:
-            if isinstance(c, dict) and ("chosen" in c and "rejected" in c):
-                new_ctx.append({"chosen": c["rejected"], "rejected": c["chosen"]})
-            elif isinstance(c, (list, tuple)) and len(c) == 2:
-                # [chosen, rejected] 형태로 들어온 경우
-                new_ctx.append({"chosen": c[1], "rejected": c[0]})
-            else:
-                # 구조가 다르면 건드리지 않음
-                new_ctx.append(c)
-        ex["contexts"] = new_ctx
-
-    return ex
-
 @dataclass
 class ScriptArguments:
     local_rank: int = field(default=-1, metadata={"help": "Used for multi-gpu"})
@@ -202,10 +178,6 @@ class ScriptArguments:
     guiding: bool = field(
         default=False,
         metadata={"help": "Whether to use guiding loss"}
-    )
-    mirrored_augmentation: bool = field(
-        default=False,
-        metadata={"help": "Train with mirrored (opposite preference) augmentation"}
     )
     fast_eval: bool = field(
         default=False,
@@ -578,10 +550,6 @@ if __name__ == "__main__":
         eval_dataset = eval_dataset.filter(lambda example: example['data_subset'] == script_args.one_user)
     reward_model_type = cast(RewardModelType, script_args.reward_model_type)
 
-    #if script_args.mirrored_augmentation:
-        #mirrored = train_dataset.map(_mirror_swap, desc="mirror swap")
-        #train_dataset = concatenate_datasets([train_dataset, mirrored])
-
     # Define the training args. Needs to be done before the model is loaded if you
     # are using deepspeed.
     model_name_split = script_args.model_name.split("/")[-1]
@@ -741,7 +709,6 @@ if __name__ == "__main__":
         kl_loss_weight=script_args.kl_loss_weight,
         guiding_weight=script_args.guiding_weight,
         use_annealing=script_args.use_annealing,
-        mirrored_augmentation=script_args.mirrored_augmentation,
         **trainer_kwargs,
     )
 
