@@ -156,7 +156,7 @@ def generate_embeddings_with_llm(args, input_dataset=None):
         model.score.weight.data *= 0.01
     else:
         return input_dataset
-    #model.to("cuda")
+    model.to("cuda")
 
     #tokenizer.pad_token = tokenizer.eos_token
     #tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -199,7 +199,7 @@ def generate_embeddings_with_llm(args, input_dataset=None):
     print(len(input_dataset), len(preprocessed_dataset))
     dataset_size = len(preprocessed_dataset)
     
-    device = next(model.parameters()).device 
+    #device = next(model.parameters()).device 
 
     embeddings = list()
     for row_id in tqdm(range(dataset_size)):
@@ -214,9 +214,9 @@ def generate_embeddings_with_llm(args, input_dataset=None):
             )
             token_length = len(preprocessed_dataset[row_id][f"input_ids_{key}"])
             #input_ids = tokens["input_ids"].unsqueeze(0).to("cuda")
-            input_ids = tokens["input_ids"].unsqueeze(0).to(device)
+            input_ids = tokens["input_ids"].unsqueeze(0).to("cuda")
             #attention_mask = tokens["attention_mask"].unsqueeze(0).to("cuda")
-            attention_mask = tokens["attention_mask"].unsqueeze(0).to(device)
+            attention_mask = tokens["attention_mask"].unsqueeze(0).to("cuda")
             with torch.no_grad():
                 last_hidden_state = model(
                     input_ids=input_ids,
