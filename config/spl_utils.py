@@ -365,7 +365,7 @@ class SPLTrainer(Trainer):
         self.guiding_weight = guiding_weight
         self.use_annealing = use_annealing
         self.annealer = Annealer(
-            total_steps=1e4, shape="cosine", baseline=0.0, cyclical=True
+            total_steps=1e4, shape="cosine", baseline=0.1, cyclical=True
         ) 
     
     def get_llama_backbone(self, m):
